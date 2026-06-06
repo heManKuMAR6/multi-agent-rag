@@ -3,17 +3,27 @@
 A production-grade agentic AI system built with **LangGraph** and **LangChain** that orchestrates multiple specialized AI agents to answer complex questions from a document knowledge base.
 
 ## Architecture
-User Question
-↓
-[Supervisor Graph — LangGraph]
-↓
-[Retriever Agent] → Semantic search via ChromaDB
-↓
-[Reasoner Agent]  → Chain-of-thought analysis
-↓
-[Synthesizer Agent] → Clean structured answer
-↓
-REST API Response (FastAPI)
+
+```text
+                User Question
+                      │
+                      ▼
+             [Retriever Agent] ◄──────────────────┐
+                      │                           │
+                      ▼                           │ (If context insufficient
+              [Reasoner Agent]                    │  & retry limit < 3)
+                      │                           │
+                      ▼                           │
+              [Graph Router] ─────────────────────┘
+                      │
+                      ├─► [Yes / Limit Reached]
+                      │
+                      ▼
+             [Synthesizer Agent]
+                      │
+                      ▼
+            REST API Response (FastAPI)
+```
 
 ## Tech Stack
 
@@ -26,12 +36,12 @@ REST API Response (FastAPI)
 
 ## Key Features
 
-- Multi-agent architecture with separation of concerns (retrieval, reasoning, synthesis)
-- Semantic search using vector embeddings — finds meaning, not just keywords
-- Persistent ChromaDB vector store — survives restarts
-- Chain-of-thought reasoning before final answer synthesis
-- Full REST API with auto-generated Swagger docs
-- Modular design — each agent is independently swappable
+- **Multi-Agent Architecture** — Cooperative agents with separation of concerns (retrieval, reasoning, synthesis).
+- **Self-Correcting Loops** — The Reasoner evaluates if the retrieved context is sufficient to answer the question. If details are missing, it reformulates a search query and routes back to the Retriever.
+- **Deduplicated Multi-Hop Retrieval** — Automatically filters out redundant document matches during loop iterations to optimize the LLM's context window.
+- **Chain-of-Thought Evaluation** — In-depth analysis of facts, gaps, and contradictions before synthesizing the final answer.
+- **Persistent ChromaDB Store** — Local vector store using OpenAI embeddings to retrieve semantic matches rather than exact keywords.
+- **REST API** — FastAPI endpoints with auto-generated Swagger documentation.
 
 ## Project Structure
 multi_agent_rag/
