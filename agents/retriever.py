@@ -32,14 +32,18 @@ def retriever_agent(state: AgentState) -> AgentState:
     LangGraph calls this function and passes the current state.
     We return only the fields we're updating.
     """
+    # Determine which query to search with
+    query = state.get("next_query")
+    if not query:
+        query = state["question"]
 
-    print(f"\n[Retriever Agent] Searching for: {state['question']}")
+    print(f"\n[Retriever Agent] Searching for: '{query}'")
 
     # Get or create the collection (like a table in a database)
     collection = chroma_client.get_or_create_collection(name="knowledge_base")
 
-    # Convert the question to a vector embedding for semantic search
-    query_embedding = embeddings.embed_query(state["question"])
+    # Convert the query to a vector embedding for semantic search
+    query_embedding = embeddings.embed_query(query)
 
     # Search ChromaDB for top 3 most semantically similar chunks
     results = collection.query(
@@ -48,12 +52,19 @@ def retriever_agent(state: AgentState) -> AgentState:
     )
 
     # Extract the actual text from results
-    docs = results["documents"][0] if results["documents"] else ["No relevant documents found."]
+    docs = results["documents"][0] if results["documents"] else []
 
-    print(f"[Retriever Agent] Found {len(docs)} relevant chunks")
+    # Filter out already retrieved documents to avoid duplicate context
+    existing_docs = state.get("retrieved_docs", [])
+    new_docs = [doc for doc in docs if doc not in existing_docs]
+
+    print(f"[Retriever Agent] Found {len(docs)} chunks. Adding {len(new_docs)} new unique chunks.")
+
+    current_loop = state.get("loop_count", 0)
 
     # Return only what this agent updates
     return {
-        "retrieved_docs": docs,
-        "current_agent": "retriever"
+        "retrieved_docs": new_docs,
+        "current_agent": "retriever",
+        "loop_count": current_loop + 1
     }

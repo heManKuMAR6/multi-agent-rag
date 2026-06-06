@@ -23,6 +23,26 @@ from agents.reasoner import reasoner_agent
 from agents.synthesizer import synthesizer_agent
 
 
+def should_continue(state: AgentState) -> str:
+    """
+    Router function to decide if we need to refine the query and retrieve more docs,
+    or proceed to the final response synthesis.
+    """
+    loop_count = state.get("loop_count", 0)
+    is_sufficient = state.get("is_context_sufficient", False)
+
+    # Allow up to 2 retries (maximum 3 retrieval attempts total)
+    if not is_sufficient and loop_count < 3:
+        print(f"[Graph Router] Context insufficient. Loop count: {loop_count}/3. Routing back to Retriever.")
+        return "retrieve_more"
+
+    if is_sufficient:
+        print(f"[Graph Router] Context sufficient. Routing to Synthesizer.")
+    else:
+        print(f"[Graph Router] Loop limit reached ({loop_count}/3). Routing to Synthesizer.")
+    return "synthesize"
+
+
 def build_graph():
     """
     Builds and compiles the multi-agent RAG graph.
@@ -40,10 +60,18 @@ def build_graph():
     graph.add_node("synthesizer", synthesizer_agent)
 
     # ── Define the flow with edges ──
-    # This is linear for now — but you could add conditional
-    # edges here to branch based on state values
     graph.add_edge("retriever", "reasoner")
-    graph.add_edge("reasoner", "synthesizer")
+    
+    # Conditional edge from reasoner
+    graph.add_conditional_edges(
+        "reasoner",
+        should_continue,
+        {
+            "retrieve_more": "retriever",
+            "synthesize": "synthesizer"
+        }
+    )
+    
     graph.add_edge("synthesizer", END)
 
     # ── Set where the graph starts ──

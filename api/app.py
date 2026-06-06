@@ -91,7 +91,10 @@ async def ask_question(request: QuestionRequest):
         "retrieved_docs": [],
         "reasoning": "",
         "final_answer": "",
-        "current_agent": ""
+        "current_agent": "",
+        "loop_count": 0,
+        "next_query": "",
+        "is_context_sufficient": False
     }
 
     # Run the full LangGraph pipeline
